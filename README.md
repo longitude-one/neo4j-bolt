@@ -2,18 +2,18 @@
 
 PHP low level Driver for Neo4j's Bolt Remoting Protocol
 
-[![Build Status](https://travis-ci.org/graphaware/neo4j-bolt-php.svg?branch=master)](https://travis-ci.org/graphaware/neo4j-bolt-php)
+[![Build Status](https://travis-ci.org/longitude-one/neo4j-bolt-php.svg?branch=master)](https://travis-ci.org/longitude-one/neo4j-bolt-php)
 
 ---
 
 ### References :
 
-* PHP Client embedding Bolt along with the http driver (recommended way of using Neo4j in PHP) : https://github.com/graphaware/neo4j-php-client
+* PHP Client embedding Bolt along with the http driver (recommended way of using Neo4j in PHP) : https://github.com/longitude-one/neo4j-php-client
 * Neo4j 3.0 : http://neo4j.com/docs
 
 ### Requirements:
 
-* PHP5.6+
+* PHP7.3+
 * Neo4j3.0
 * PHP Sockets extension available
 * `bcmath` extension
@@ -24,7 +24,7 @@ PHP low level Driver for Neo4j's Bolt Remoting Protocol
 Require the package in your dependencies :
 
 ```bash
-composer require graphaware/neo4j-bolt
+composer require longitude-one/neo4j-bolt
 ```
 
 ### Setting up a driver and creating a session
