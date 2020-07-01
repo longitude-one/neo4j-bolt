@@ -1,6 +1,8 @@
 ## Neo4j Bolt PHP
 
 PHP low level Driver for Neo4j's Bolt Remoting Protocol
+Neo4j Bolt PHP is a [repository](https://github.com/graphaware/neo4j-bolt-php) initially created by [GraphAware](https://www.graphaware.com).
+As it is a MIT library not upgraded since 2017, LongitudeOne decided to fork it and upgrade it.
 
 [![Build Status](https://travis-ci.org/longitude-one/neo4j-bolt-php.svg?branch=master)](https://travis-ci.org/longitude-one/neo4j-bolt-php)
 
@@ -96,6 +98,7 @@ $session = $driver->session();
 
 ### License
 
+Copyright (c) 2020      LongitudeOne
 Copyright (c) 2015-2016 GraphAware Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
