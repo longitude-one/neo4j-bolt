@@ -1,20 +1,28 @@
 language: php
 
-php:
-    - 7.3
-    - 7.4
+cache:
+    directories:
+        - $HOME/.composer/cache/files
 
 jdk:
     # Needed for local Neo4j 2.0+
     - oraclejdk8
 
+matrix:
+    fast_finish: true
+    include:
+        - php: 7.3
+          env: NEO4J_VERSION="enterprise-3.5.16"
+        - php: 7.4
+          env: NEO4J_VERSION="enterprise-3.5.16"
+
 before_install:
     - composer install --prefer-source --no-interaction
 
 install:
-    - wget http://dist.neo4j.org/neo4j-enterprise-3.5.16-unix.tar.gz
+    - wget http://dist.neo4j.org/neo4j-${NEO4J_VERSION}-unix.tar.gz
     - mkdir neo
-    - tar xzf neo4j-enterprise-3.5.16-unix.tar.gz -C neo --strip-components=1
+    - tar xzf neo4j-${NEO4J_VERSION}-unix.tar.gz -C neo --strip-components=1
     - sed -i.bak '0,/\(dbms\.security\.auth_enabled=\).*/s/^#//g' ./neo/conf/neo4j.conf
     - cat ./neo/conf/neo4j.conf
     - neo/bin/neo4j start &
