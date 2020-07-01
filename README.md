@@ -4,22 +4,27 @@ PHP low level Driver for Neo4j's Bolt Remoting Protocol
 Neo4j Bolt PHP is a [repository](https://github.com/graphaware/neo4j-bolt-php) initially created by [GraphAware](https://www.graphaware.com).
 As it is a MIT library not upgraded since 2017, LongitudeOne decided to fork it and upgrade it.
 
-[![Build Status](https://travis-ci.org/longitude-one/neo4j-bolt-php.svg?branch=master)](https://travis-ci.org/longitude-one/neo4j-bolt-php)
-
+[![Version](https://poser.pugx.org/longitude-one/neo4j-bolt/version)](//packagist.org/packages/longitude-one/neo4j-bolt)
+[![Build Status](https://travis-ci.org/longitude-one/neo4j-bolt.svg?branch=master)](https://travis-ci.org/longitude-one/neo4j-bolt)
+[![License](https://poser.pugx.org/longitude-one/neo4j-bolt/license)](//packagist.org/packages/longitude-one/neo4j-bolt)
+[![Total Downloads](https://poser.pugx.org/longitude-one/neo4j-bolt/downloads)](//packagist.org/packages/longitude-one/neo4j-bolt)
 ---
 
 ### References :
 
 * PHP Client embedding Bolt along with the http driver (recommended way of using Neo4j in PHP) : https://github.com/longitude-one/neo4j-php-client
-* Neo4j 3.0 : http://neo4j.com/docs
+* Neo4j 3.5 : http://neo4j.com/docs
 
 ### Requirements:
 
 * PHP7.3+
-* Neo4j3.0
+* Neo4j3.0 (3.5 recommended)
 * PHP Sockets extension available
 * `bcmath` extension
+* `json` extension
 * `mbstring` extension
+
+This driver isn't compatible with Neo4j 4.0 nor 4.1.
 
 ### Installation
 
@@ -96,7 +101,7 @@ $driver = \GraphAware\Bolt\GraphDatabase::driver('bolt://hobomjfhocgbkeenl.dbs.g
 $session = $driver->session();
 ```
 
-### License
+### License [![License](https://poser.pugx.org/longitude-one/neo4j-bolt/license)](//packagist.org/packages/longitude-one/neo4j-bolt)
 
 Copyright (c) 2020      LongitudeOne
 Copyright (c) 2015-2016 GraphAware Ltd
