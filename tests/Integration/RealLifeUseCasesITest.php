@@ -31,6 +31,8 @@ class RealLifeUseCasesITest extends IntegrationTestCase
         MERGE (p)-[:KNOWS]->(o)';
 
         $this->getSession()->run($query, ['batches' => $batches]);
+
+        self::markTestIncomplete('TODO Complete this testbe');
     }
 
     /**

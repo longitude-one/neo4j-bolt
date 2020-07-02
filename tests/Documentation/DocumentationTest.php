@@ -13,13 +13,14 @@ namespace GraphAware\Bolt\Tests\Documentation;
 
 use GraphAware\Bolt\GraphDatabase;
 use GraphAware\Common\Driver\DriverInterface;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Class DocumentationTest
  *
  * @group documentation
  */
-class DocumentationTest extends \PHPUnit_Framework_TestCase
+class DocumentationTest extends TestCase
 {
     public function testSetup()
     {

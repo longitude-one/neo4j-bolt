@@ -2,6 +2,7 @@
 
 namespace GraphAware\Bolt\Tests\Integration;
 
+use Exception;
 use GraphAware\Bolt\Exception\MessageFailureException;
 use GraphAware\Bolt\Tests\IntegrationTestCase;
 use GraphAware\Common\Cypher\Statement;
@@ -20,7 +21,7 @@ class ExceptionDispatchTest extends IntegrationTestCase
     {
         $session = $this->getSession();
 
-        $this->setExpectedException(MessageFailureException::class);
+        self::expectException(MessageFailureException::class);
         $session->run("CREATE (n:)");
 
         try {
@@ -73,7 +74,7 @@ class ExceptionDispatchTest extends IntegrationTestCase
         $this->createConstraint('User', 'id');
         $session->run('MATCH (n:User) DETACH DELETE n');
         $session->run('CREATE (n:User {id:1})');
-        $this->setExpectedException(MessageFailureException::class);
+        self::expectException(MessageFailureException::class);
         $session->run('CREATE (n:User {id:1})');
     }
 
@@ -88,7 +89,7 @@ class ExceptionDispatchTest extends IntegrationTestCase
         $pipeline->push('CREATE (n:User {id:4})');
         $pipeline->push('CREATE (n:User {id:1})');
         $pipeline->push('CREATE (n:User {id:5})');
-        $this->setExpectedException(MessageFailureException::class);
+        self::expectException(MessageFailureException::class);
         $pipeline->run();
     }
 
@@ -103,7 +104,7 @@ class ExceptionDispatchTest extends IntegrationTestCase
         $pipeline = $session->createPipeline();
         $pipeline->push('CREATE CONSTRAINT ON (u:User) ASSERT u.id IS UNIQUE');
         $pipeline->push('CREATE (n:User {id:1})');
-        $this->setExpectedException(MessageFailureException::class);
+        self::expectException(MessageFailureException::class);
         $pipeline->run();
     }
 
@@ -153,7 +154,7 @@ class ExceptionDispatchTest extends IntegrationTestCase
             $tx->run();
             // should fail
             $this->assertFalse(true);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->assertTrue(true);
         }
     }

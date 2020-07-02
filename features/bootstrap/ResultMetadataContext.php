@@ -1,16 +1,13 @@
 <?php
 
-use Behat\Behat\Tester\Exception\PendingException;
 use Behat\Behat\Context\Context;
 use Behat\Behat\Context\SnippetAcceptingContext;
-use Behat\Gherkin\Node\PyStringNode;
-use Behat\Gherkin\Node\TableNode;
 
-use GraphAware\Bolt\Driver;
+use GraphAware\Bolt\GraphDatabase;
 use GraphAware\Common\Result\ResultSummaryInterface;
 use GraphAware\Common\Cypher\StatementInterface;
 use GraphAware\Common\Result\StatementStatisticsInterface;
-use PHPUnit_Framework_Assert as Assert;
+use PHPUnit\Framework\Assert;
 
 /**
  * Defines application features from the specific context.
@@ -46,7 +43,7 @@ class ResultMetadataContext implements Context, SnippetAcceptingContext
      */
     public function thereIsADriverConfiguredWithTheUri($arg1)
     {
-        $this->driver = \GraphAware\Bolt\GraphDatabase::driver("bolt://localhost");
+        $this->driver = GraphDatabase::driver("bolt://localhost");
     }
 
     /**
@@ -112,7 +109,7 @@ class ResultMetadataContext implements Context, SnippetAcceptingContext
      */
     public function theStatementParametersShouldBeAMap()
     {
-        Assert::assertInternalType("array", $this->statement->parameters());
+        Assert::assertIsArray($this->statement->parameters());
     }
 
     /**

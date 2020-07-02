@@ -12,13 +12,13 @@ use GraphAware\Bolt\Tests\IntegrationTestCase;
  * @group integration
  * @group integers
  */
-class PackingIntegrationTest extends IntegrationTestCase
+class PackingIntegersIntegrationTest extends IntegrationTestCase
 {
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
         $this->emptyDB();
-        $this->getSession()->run("CREATE INDEX ON :Integer(value)");
+        $this->getSession()->run('CREATE INDEX ON :Integer(value)');
     }
 
     /**

@@ -24,5 +24,6 @@ class HandshakeIntegrationTest extends IntegrationTestCase
     public function testErrorIsThrownWhenNoVersionCanBeAgreed()
     {
         // needs some refactoring for mocking the session registry
+        self::markTestIncomplete('needs some refactoring for mocking the session registry');
     }
 }

@@ -1,9 +1,10 @@
 <?php
 
-namespace GraphAware\Bolt\Tests\Protocol\Message;
+namespace GraphAware\Bolt\Tests\Unit\Protocol\Message;
 
 use GraphAware\Bolt\Protocol\Message\SuccessMessage;
 use GraphAware\Bolt\Protocol\Message\AbstractMessage;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Class MessageUnitTest
@@ -12,7 +13,7 @@ use GraphAware\Bolt\Protocol\Message\AbstractMessage;
  * @group message
  * @group unit
  */
-class MessageUnitTest extends \PHPUnit_Framework_TestCase
+class MessageUnitTest extends TestCase
 {
     public function testSuccessMessageWithoutFields()
     {

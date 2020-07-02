@@ -134,6 +134,7 @@ class Driver implements DriverInterface
         }
 
         $msg = '';
+        //``°ETB
         $msg .= chr(0x60).chr(0x60).chr(0xb0).chr(0x17);
 
         foreach (array(1, 0, 0, 0) as $v) {
