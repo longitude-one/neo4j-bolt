@@ -11,6 +11,8 @@ jdk:
 matrix:
     fast_finish: true
     include:
+        - php: 7.2
+          env: NEO4J_VERSION="enterprise-3.5.19"
         - php: 7.3
           env: NEO4J_VERSION="enterprise-3.5.19"
         - php: 7.4
@@ -19,6 +21,8 @@ matrix:
           env: NEO4J_VERSION="enterprise-4.0.6"
         - php: 7.4
           env: NEO4J_VERSION="enterprise-4.1.0"
+        - php: 7.2
+          env: NEO4J_VERSION="community-3.5.19"
         - php: 7.3
           env: NEO4J_VERSION="community-3.5.19"
         - php: 7.4
