@@ -1,30 +1,44 @@
 <?php
-
-/*
- * This file is part of the GraphAware Bolt package.
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
  *
- * (c) Graph Aware Limited <http://graphaware.com>
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace GraphAware\Bolt;
 
+use GraphAware\Bolt\Exception\HandshakeException;
 use GraphAware\Bolt\Exception\IOException;
 use GraphAware\Bolt\IO\StreamSocket;
 use GraphAware\Bolt\Protocol\SessionRegistry;
-use GraphAware\Bolt\PackStream\Packer;
 use GraphAware\Bolt\Protocol\V1\Session;
 use GraphAware\Common\Driver\DriverInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use GraphAware\Bolt\Exception\HandshakeException;
 
 class Driver implements DriverInterface
 {
+    const DEFAULT_TCP_PORT = 7687;
     const VERSION = '1.5.4';
 
-    const DEFAULT_TCP_PORT = 7687;
+    /**
+     * @var array
+     */
+    protected $credentials;
+
+    /**
+     * @var EventDispatcher
+     */
+    protected $dispatcher;
 
     /**
      * @var StreamSocket
@@ -32,9 +46,9 @@ class Driver implements DriverInterface
     protected $io;
 
     /**
-     * @var EventDispatcher
+     * @var Session
      */
-    protected $dispatcher;
+    protected $session;
 
     /**
      * @var SessionRegistry
@@ -47,26 +61,7 @@ class Driver implements DriverInterface
     protected $versionAgreed = false;
 
     /**
-     * @var Session
-     */
-    protected $session;
-
-    /**
-     * @var array
-     */
-    protected $credentials;
-
-    /**
-     * @return string
-     */
-    public static function getUserAgent()
-    {
-        return 'GraphAware-BoltPHP/'.self::VERSION;
-    }
-
-    /**
-     * @param string             $uri
-     * @param Configuration|null $configuration
+     * @param string $uri
      */
     public function __construct($uri, Configuration $configuration = null)
     {
@@ -103,6 +98,38 @@ class Driver implements DriverInterface
     }
 
     /**
+     * @return string
+     */
+    public static function getUserAgent()
+    {
+        return 'GraphAware-BoltPHP/'.self::VERSION;
+    }
+
+    /**
+     * @throws HandshakeException when server isn't compatible with Bolt 1.0 nor Bolt 4.1
+     * @throws IOException
+     */
+    public function handshake(): int
+    {
+        if (!$this->io->isConnected()) {
+            $this->io->reconnect();
+        }
+
+        //Version 4: 60 60 b0 17 00 00 01 04 00 00 00 04 00 00 00 03 00 00 00 02
+        //Version 1: 60:60:b0:17:00:00:00:01:00:00:00:00:00:00:00:00:00:00:00:00
+        try {
+            $version = $this->handshakeVersion41();
+            if ($version) {
+                return $version;
+            }
+        } catch (IOException $e) {
+            throw new HandshakeException($e->getMessage());
+        }
+
+        throw new HandshakeException('Handshake Exception. Unable to negotiate a version to use. Proposed versions were 4.1 and 1.0');
+    }
+
+    /**
      * @return Session
      */
     public function session()
@@ -121,48 +148,24 @@ class Driver implements DriverInterface
     }
 
     /**
-     * @return int
+     * Handshake and present a compatibility with Bolt protocol v4.1 and v1.
      *
-     * @throws HandshakeException
+     * @throws IOException
      */
-    public function handshake()
+    private function handshakeVersion41(): int
     {
-        $packer = new Packer();
+        //We only send 4.1 and 1.0
+        //60 60 b0 17 00 00 01 04 00 00 00 01 00 00 00 00 00 00 00 00
+        $msg = chr(0x60).chr(0x60).chr(0xb0).chr(0x17);
+        $msg .= chr(0x00).chr(0x00).chr(0x01).chr(0x04);
+        $msg .= pack('N', 1);
+        $msg .= pack('N', 0);
+        $msg .= pack('N', 0);
 
-        if (!$this->io->isConnected()) {
-            $this->io->reconnect();
-        }
+        $this->io->write($msg);
+        $rawHandshakeResponse = $this->io->read(4);
+        $response = unpack('N', $rawHandshakeResponse);
 
-        $msg = '';
-        //``°ETB
-        $msg .= chr(0x60).chr(0x60).chr(0xb0).chr(0x17);
-
-        foreach (array(1, 0, 0, 0) as $v) {
-            $msg .= $packer->packBigEndian($v, 4);
-        }
-
-        try {
-            $this->io->write($msg);
-            $rawHandshakeResponse = $this->io->read(4);
-            $response = unpack('N', $rawHandshakeResponse);
-            $version = $response[1];
-
-            if (0 === $version) {
-                $this->throwHandshakeException(sprintf('Handshake Exception. Unable to negotiate a version to use. Proposed versions were %s',
-                    json_encode(array(1, 0, 0, 0))));
-            }
-
-            return $version;
-        } catch (IOException $e) {
-            $this->throwHandshakeException($e->getMessage());
-        }
-    }
-
-    /**
-     * @param string $message
-     */
-    private function throwHandshakeException($message)
-    {
-        throw new HandshakeException($message);
+        return $response[1];
     }
 }

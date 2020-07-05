@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<phpunit backupGlobals="false"
-         backupStaticAttributes="false"
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          colors="true"
-         convertErrorsToExceptions="true"
-         convertNoticesToExceptions="true"
-         convertWarningsToExceptions="true"
-         processIsolation="false"
-         stopOnFailure="false"
          bootstrap="vendor/autoload.php"
-        >
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd">
     <testsuites>
         <testsuite name="BoltPHP Test Suite">
             <directory>./tests</directory>
         </testsuite>
     </testsuites>
+    <groups>
+        <exclude>
+            <group>fail</group>
+        </exclude>
+    </groups>
+
+    <php>
+        <!-- This is needed to perform test on very long string -->
+        <ini name="memory_limit" value="-1" />
+    </php>
 </phpunit>

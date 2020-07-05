@@ -1,13 +1,18 @@
 <?php
-
-/*
- * This file is part of the GraphAware Bolt package.
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
  *
- * (c) GraphAware Ltd <christophe@graphaware.com>
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
+declare(strict_types=1);
 
 namespace GraphAware\Bolt\Protocol;
 
@@ -28,14 +33,20 @@ class ChunkWriter
      */
     protected $packer;
 
-    /**
-     * @param AbstractIO $io
-     * @param Packer     $packer
-     */
     public function __construct(AbstractIO $io, Packer $packer)
     {
         $this->io = $io;
         $this->packer = $packer;
+    }
+
+    /**
+     * @param string $data
+     *
+     * @return array
+     */
+    public function splitChunk($data)
+    {
+        return str_split($data, self::MAX_CHUNK_SIZE);
     }
 
     /**
@@ -49,22 +60,12 @@ class ChunkWriter
             $chunkData = $msg->getSerialization();
             $chunks = $this->splitChunk($chunkData);
             foreach ($chunks as $chunk) {
-                $raw .= $this->packer->getSizeMarker($chunk);
+                $raw .= Packer::packSizeMarker($chunk);
                 $raw .= $chunk;
             }
-            $raw .= $this->packer->getEndSignature();
+            $raw .= Packer::getEndSignature();
         }
 
         $this->io->write($raw);
-    }
-
-    /**
-     * @param string $data
-     *
-     * @return array
-     */
-    public function splitChunk($data)
-    {
-        return str_split($data, self::MAX_CHUNK_SIZE);
     }
 }

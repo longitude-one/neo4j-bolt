@@ -14,11 +14,18 @@
 
 declare(strict_types=1);
 
-namespace GraphAware\Bolt\Exception;
+namespace GraphAware\Bolt\PackStream;
 
-use InvalidArgumentException;
-use Throwable;
-
-class BoltInvalidArgumentException extends InvalidArgumentException implements BoltExceptionInterface, Throwable
+class Size
 {
+    const SIZE_16 = 65536;
+
+    const SIZE_32 = 4294967295;
+
+    const SIZE_8 = 256;
+
+    const SIZE_LARGE = 65536;
+
+    const SIZE_MEDIUM = 256;
+    const SIZE_TINY = 16;
 }

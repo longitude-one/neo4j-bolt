@@ -63,7 +63,7 @@ abstract class AbstractSession implements SessionInterface
     {
         $this->io = $io;
         $this->dispatcher = $dispatcher;
-        $this->packer = new Packer();
+        $this->packer = new Packer(); //FIXME NO MORE NEEDED
         $this->streamChannel = new StreamChannel($io);
         $this->unpacker = new Unpacker($this->streamChannel);
         $this->serializer = new Serializer($this->packer, $this->unpacker);

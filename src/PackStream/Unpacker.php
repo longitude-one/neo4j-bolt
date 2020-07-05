@@ -76,11 +76,6 @@ class Unpacker
         return $this->unpackElement(new BytesWalker(new RawMessage($b)));
     }
 
-    /**
-     * @param \GraphAware\Bolt\PackStream\BytesWalker $walker
-     *
-     * @return \GraphAware\Bolt\PackStream\Structure\Structure
-     */
     public function unpackElement(BytesWalker $walker)
     {
         $marker = $walker->read(1);
@@ -125,6 +120,12 @@ class Unpacker
 
         if ($byte === Constants::MAP_16) {
             $size = $this->readUnsignedShort($walker);
+
+            return $this->unpackMap($size, $walker);
+        }
+
+        if ($byte === Constants::MAP_32) {
+            $size = $this->readUnsignedLong($walker);
 
             return $this->unpackMap($size, $walker);
         }
@@ -218,7 +219,7 @@ class Unpacker
 
         // Checks Primitive Values NULL, TRUE, FALSE
         if ($byte === Constants::MARKER_NULL) {
-            return;
+            return null;
         }
 
         if ($byte === Constants::MARKER_TRUE) {

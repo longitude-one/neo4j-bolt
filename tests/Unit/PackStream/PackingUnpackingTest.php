@@ -1,94 +1,51 @@
 <?php
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
+ *
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+declare(strict_types=1);
 
 namespace GraphAware\Bolt\Tests\Unit\PackStream;
 
 use GraphAware\Bolt\IO\StreamSocket;
 use GraphAware\Bolt\PackStream\BytesWalker;
+use GraphAware\Bolt\PackStream\Marker;
+use GraphAware\Bolt\PackStream\Packer;
+use GraphAware\Bolt\PackStream\Size;
 use GraphAware\Bolt\PackStream\StreamChannel;
 use GraphAware\Bolt\PackStream\Unpacker;
 use GraphAware\Bolt\Protocol\Constants;
 use GraphAware\Bolt\Protocol\Message\RawMessage;
-use GraphAware\Bolt\PackStream\Packer;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Class UnpackerTest
- * @package GraphAware\Bolt\Tests\Unit\PackSream
+ * Class UnpackerTest.
  *
  * @group unit
  * @group unpack
+ *
+ * @internal
+ * @coversNothing
  */
-class UnpackerTest extends TestCase
+class PackingUnpackingTest extends TestCase
 {
     /**
-     * @var \GraphAware\Bolt\PackStream\Unpacker
+     * @var Unpacker
      */
     protected $unpacker;
 
-    /**
-     * @var \GraphAware\Bolt\PackStream\Packer
-     */
-    protected $packer;
-
     public function setUp(): void
     {
-        $this->unpacker = new Unpacker(new StreamChannel(new StreamSocket("bolt://localhost", 7687)));
-        $this->packer = new Packer();
-    }
-
-    public function testPackingNull()
-    {
-        $w = $this->getWalkerForBinary(chr(Constants::MARKER_NULL));
-        $nullElement = null;
-        $this->assertEquals($nullElement, $this->unpacker->unpackElement($w));
-        $this->assertEquals(chr(Constants::MARKER_NULL), $this->packer->pack(null));
-    }
-
-    public function testPackingTrue()
-    {
-        $w = $this->getWalkerForBinary(chr(Constants::MARKER_TRUE));
-        $trueElt = true;
-        $this->assertEquals($trueElt, $this->unpacker->unpackElement($w));
-        $this->assertEquals(chr(Constants::MARKER_TRUE), $this->packer->pack(true));
-    }
-
-    public function testPackingFalse()
-    {
-        $w = $this->getWalkerForBinary(chr(Constants::MARKER_FALSE));
-        $elt = false;
-        $this->assertEquals($elt, $this->unpacker->unpackElement($w));
-        $this->assertEquals(chr(Constants::MARKER_FALSE), $this->packer->pack(false));
-    }
-
-    public function testPackingTinyText()
-    {
-        $text = 'TinyText';
-        $length = strlen($text);
-        $binary = chr(Constants::TEXT_TINY + $length) . $text;
-        $w = $this->getWalkerForBinary($binary);
-        $elt = $text;
-        $this->assertEquals($elt, $this->unpacker->unpackElement($w));
-        $this->assertEquals($binary, $this->packer->pack($text));
-    }
-
-    public function testPackingText8()
-    {
-        $text = str_repeat('a', (Constants::SIZE_8)-1);
-        $length = strlen($text);
-        $binary = chr(Constants::TEXT_8) . $this->packer->packUnsignedShortShort($length) . $text;
-        $w = $this->getWalkerForBinary($binary);
-        $this->assertEquals($text, $this->unpacker->unpackElement($w));
-        $this->assertEquals($binary, $this->packer->pack($text));
-    }
-
-    public function testPackingText16()
-    {
-        $text = str_repeat("a", (Constants::SIZE_16)-1);
-        $length = strlen($text);
-        $bin = chr(Constants::TEXT_16) . $this->packer->packUnsignedShort($length) . $text;
-        $w = $this->getWalkerForBinary($bin);
-        $this->assertEquals($text, $this->unpacker->unpackElement($w));
-        $this->assertEquals($bin, $this->packer->pack($text));
+        $this->unpacker = new Unpacker(new StreamChannel(new StreamSocket('bolt://localhost', 7687)));
     }
 
     /**
@@ -96,14 +53,62 @@ class UnpackerTest extends TestCase
      */
     public function testGetSignature()
     {
-        self::markTestIncomplete('TODO complete this test');
-        $bytes = hex2bin("b170a0");
+        $bytes = hex2bin('b170a0');
         $raw = new RawMessage($bytes);
         $walker = new BytesWalker($raw);
-        //$walker->forward(1);
+        $walker->forward(1);
 
-        //$sig = $this->unpacker->getSignature($walker);
-        //$this->assertEquals('SUCCESS', $sig);
+        $sig = $this->unpacker->getSignature($walker);
+        $this->assertSame('SUCCESS', $sig);
+    }
+
+    public function testPackingFalse()
+    {
+        $w = $this->getWalkerForBinary(chr(Constants::MARKER_FALSE));
+        $this->assertFalse($this->unpacker->unpackElement($w));
+        $this->assertSame(chr(Marker::FALSE), Packer::pack(false));
+    }
+
+    public function testPackingNull()
+    {
+        $w = $this->getWalkerForBinary(chr(Constants::MARKER_NULL));
+        $this->assertNull($this->unpacker->unpackElement($w));
+        $this->assertSame(chr(Marker::NULL), Packer::pack(null));
+    }
+
+    public function testPackingText16()
+    {
+        $text = str_repeat('a', (Size::SIZE_16) - 1);
+        $binary = chr(0xd1).chr(0xFF).chr(0xFF).$text;
+        $w = $this->getWalkerForBinary($binary);
+        $this->assertSame($text, $this->unpacker->unpackElement($w));
+        $this->assertSame($binary, Packer::pack($text));
+    }
+
+    public function testPackingText8()
+    {
+        $text = str_repeat('a', (Size::SIZE_8) - 1);
+        $binary = chr(0xd0).chr(0xFF).$text;
+        $w = $this->getWalkerForBinary($binary);
+        $this->assertSame($text, $this->unpacker->unpackElement($w));
+        $this->assertSame($binary, Packer::pack($text));
+    }
+
+    public function testPackingTinyText()
+    {
+        $text = 'TinyText';
+        $length = strlen($text);
+        $binary = chr(Marker::TEXT_TINY + $length).$text;
+        $w = $this->getWalkerForBinary($binary);
+        $this->assertSame($text, $this->unpacker->unpackElement($w));
+        $this->assertSame($binary, Packer::pack($text));
+    }
+
+    public function testPackingTrue()
+    {
+        $w = $this->getWalkerForBinary(chr(Constants::MARKER_TRUE));
+        $this->assertTrue( $this->unpacker->unpackElement($w));
+        $this->assertSame(chr(Marker::TRUE), Packer::pack(true));
     }
 
     /**

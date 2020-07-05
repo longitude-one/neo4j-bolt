@@ -48,7 +48,7 @@ class Serializer
     public function serialize(AbstractMessage $message)
     {
         $buffer = '';
-        $buffer .= $this->packer->packStructureHeader($message->getFieldsLength(), $message->getSignature());
+        $buffer .= Packer::packStructureHeader($message->getFieldsLength(), $message->getSignature());
 
         foreach ($message->getFields() as $field) {
             $buffer .= $this->packer->pack($field);
