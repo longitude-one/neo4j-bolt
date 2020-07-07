@@ -1,13 +1,19 @@
 <?php
-
-/*
- * This file is part of the GraphAware Bolt package.
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
  *
- * (c) GraphAware Ltd <christophe@graphaware.com>
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
+declare(strict_types=1);
 
 namespace GraphAware\Bolt\Protocol;
 
@@ -21,32 +27,28 @@ interface SessionInterface extends BaseSessionInterface
     public static function getProtocolVersion();
 
     /**
+     * @param string|null $query
+     * @param string|null $tag
+     *
+     * @return Pipeline
+     */
+    public function createPipeline($query = null, array $parameters = [], $tag = null);
+
+    /**
      * @param string      $statement
-     * @param array       $parameters
-     * @param null|string $tag
+     * @param string|null $tag
      *
      * @return \GraphAware\Bolt\Result\Result
      */
-    public function run($statement, array $parameters = array(), $tag = null);
+    public function run($statement, array $parameters = [], $tag = null);
 
     /**
-     * @param Pipeline $pipeline
-     *
      * @return mixed
      */
     public function runPipeline(Pipeline $pipeline);
 
     /**
-     * @param null|string $query
-     * @param array       $parameters
-     * @param null|string $tag
-     *
-     * @return Pipeline
-     */
-    public function createPipeline($query = null, array $parameters = array(), $tag = null);
-
-    /**
-     * @return \GraphAware\Bolt\Protocol\V1\Transaction
+     * @return \GraphAware\Bolt\Protocol\V100\Transaction
      */
     public function transaction();
 }

@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace GraphAware\Bolt\Protocol\V1;
+namespace GraphAware\Bolt\Protocol\V100;
 
 use GraphAware\Bolt\Exception\MessageFailureException;
 

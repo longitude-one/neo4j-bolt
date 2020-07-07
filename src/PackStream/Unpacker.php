@@ -1,13 +1,19 @@
 <?php
-
-/*
- * This file is part of the GraphAware Bolt package.
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
  *
- * (c) Graph Aware Limited <http://graphaware.com>
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
+declare(strict_types=1);
 
 namespace GraphAware\Bolt\PackStream;
 
@@ -22,13 +28,14 @@ use GraphAware\Bolt\Result\Type\Relationship;
 
 class Unpacker
 {
-    const SUCCESS = 'SUCCESS';
-
     const FAILURE = 'FAILURE';
 
-    const RECORD = 'RECORD';
-
     const IGNORED = 'IGNORED';
+
+    const INIT = 'INIT';
+
+    const RECORD = 'RECORD';
+    const SUCCESS = 'SUCCESS';
 
     /**
      * @var bool
@@ -40,9 +47,6 @@ class Unpacker
      */
     protected $streamChannel;
 
-    /**
-     * @param StreamChannel $streamChannel
-     */
     public function __construct(StreamChannel $streamChannel)
     {
         $this->is64bits = PHP_INT_SIZE == 8;
@@ -50,308 +54,34 @@ class Unpacker
     }
 
     /**
-     * @param \GraphAware\Bolt\Protocol\Message\RawMessage $message
+     * @param int $longInt
      *
-     * @return \GraphAware\Bolt\PackStream\Structure\Structure
+     * @return bool
      */
-    public function unpackRaw(RawMessage $message)
+    private static function getLongMSB($longInt)
     {
-        $walker = new BytesWalker($message);
-
-        return $this->unpackElement($walker);
+        return (bool) ($longInt & 0x80000000);
     }
 
     /**
-     * @return Structure
-     */
-    public function unpack()
-    {
-        $b = '';
-        do {
-            $chunkHeader = $this->streamChannel->read(2);
-            list(, $size) = unpack('n', $chunkHeader);
-            $b .= $this->streamChannel->read($size);
-        } while ($size > 0);
-
-        return $this->unpackElement(new BytesWalker(new RawMessage($b)));
-    }
-
-    public function unpackElement(BytesWalker $walker)
-    {
-        $marker = $walker->read(1);
-        $byte = hexdec(bin2hex($marker));
-        $ordMarker = ord($marker);
-        $markerHigh = $ordMarker & 0xf0;
-        $markerLow = $ordMarker & 0x0f;
-
-        // Structures
-        if (0xb0 <= $ordMarker && $ordMarker <= 0xbf) {
-            $walker->rewind(1);
-            $structureSize = $this->getStructureSize($walker);
-            $sig = $this->getSignature($walker);
-            $str = new Structure($sig, $structureSize);
-            $done = 0;
-            while ($done < $structureSize) {
-                $elt = $this->unpackElement($walker);
-                $str->addElement($elt);
-                ++$done;
-            }
-
-            return $str;
-        }
-
-        if ($markerHigh === Constants::MAP_TINY) {
-            $size = $markerLow;
-            $map = [];
-            for ($i = 0; $i < $size; ++$i) {
-                $identifier = $this->unpackElement($walker);
-                $value = $this->unpackElement($walker);
-                $map[$identifier] = $value;
-            }
-
-            return $map;
-        }
-
-        if (Constants::MAP_8 === $byte) {
-            $size = $this->readUnsignedShortShort($walker);
-
-            return $this->unpackMap($size, $walker);
-        }
-
-        if ($byte === Constants::MAP_16) {
-            $size = $this->readUnsignedShort($walker);
-
-            return $this->unpackMap($size, $walker);
-        }
-
-        if ($byte === Constants::MAP_32) {
-            $size = $this->readUnsignedLong($walker);
-
-            return $this->unpackMap($size, $walker);
-        }
-
-        if ($markerHigh === Constants::TEXT_TINY) {
-            $textSize = $this->getLowNibbleValue($marker);
-
-            return $this->unpackText($textSize, $walker);
-        }
-
-        if ($byte === Constants::TEXT_8) {
-            $textSize = $this->readUnsignedShortShort($walker);
-
-            return $this->unpackText($textSize, $walker);
-        }
-
-        if ($byte === Constants::TEXT_16) {
-            $textSize = $this->readUnsignedShort($walker);
-
-            return $this->unpackText($textSize, $walker);
-        }
-
-        if ($byte === Constants::TEXT_32) {
-            $textSize = $this->readUnsignedLong($walker);
-
-            return $this->unpackText($textSize, $walker);
-        }
-
-        if ($byte === Constants::INT_8) {
-            $integer = $this->readSignedShortShort($walker);
-
-            return $this->unpackInteger($integer);
-        }
-
-        if ($byte === Constants::INT_16) {
-            $integer = $this->readSignedShort($walker);
-
-            return $this->unpackInteger($integer);
-        }
-
-        if ($byte === Constants::INT_32) {
-            $integer = $this->readSignedLong($walker);
-
-            return $this->unpackInteger($integer);
-        }
-
-        if ($byte === Constants::INT_64) {
-            $integer = $this->readSignedLongLong($walker);
-
-            return $this->unpackInteger($integer);
-        }
-
-        if ($markerHigh === Constants::LIST_TINY) {
-            $size = $this->getLowNibbleValue($marker);
-
-            return $this->unpackList($size, $walker);
-        }
-
-        if ($byte === Constants::LIST_8) {
-            $size = $this->readUnsignedShortShort($walker);
-
-            return $this->unpackList($size, $walker);
-        }
-
-        if ($byte === Constants::LIST_16) {
-            $size = $this->readUnsignedShort($walker);
-
-            return $this->unpackList($size, $walker);
-        }
-
-        if ($byte === Constants::LIST_32) {
-            $size = $this->readUnsignedLong($walker);
-
-            return $this->unpackList($size, $walker);
-        }
-
-        // Checks for TINY INTS
-        if ($this->isInRange(0x00, 0x7f, $marker) || $this->isInRange(0xf0, 0xff, $marker)) {
-            $walker->rewind(1);
-            $integer = $this->readSignedShortShort($walker);
-
-            return $this->unpackInteger($integer);
-        }
-
-        // Checks for floats
-        if ($byte === Constants::MARKER_FLOAT) {
-            list(, $v) = unpack('d', strrev($walker->read(8)));
-
-            return (float) $v;
-        }
-
-        // Checks Primitive Values NULL, TRUE, FALSE
-        if ($byte === Constants::MARKER_NULL) {
-            return null;
-        }
-
-        if ($byte === Constants::MARKER_TRUE) {
-            return true;
-        }
-
-        if ($byte === Constants::MARKER_FALSE) {
-            return false;
-        }
-
-        throw new SerializationException(sprintf('Unable to find serialization type for marker %s', Helper::prettyHex($marker)));
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return Node
-     */
-    public function unpackNode(BytesWalker $walker)
-    {
-        $identity = $this->unpackElement($walker);
-        $labels = $this->unpackElement($walker);
-        $properties = $this->unpackElement($walker);
-
-        return new Node($identity, $labels, $properties);
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return Relationship
-     */
-    public function unpackRelationship(BytesWalker $walker)
-    {
-        $identity = $this->unpackElement($walker);
-        $startNode = $this->unpackElement($walker);
-        $endNode = $this->unpackElement($walker);
-        $type = $this->unpackElement($walker);
-        $properties = $this->unpackElement($walker);
-
-        return new Relationship($identity, $startNode, $endNode, $type, $properties);
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return Path
-     */
-    public function unpackPath(BytesWalker $walker)
-    {
-        return $this->unpackElement($walker);
-    }
-
-    /**
-     * @param int         $size
-     * @param BytesWalker $walker
-     *
-     * @return string
-     */
-    public function unpackText($size, BytesWalker $walker)
-    {
-        return $walker->read($size);
-    }
-
-    /**
-     * @param string $value
+     * @param string $byte
      *
      * @return int
      */
-    public function unpackInteger($value)
+    public function getLowNibbleValue($byte)
     {
-        return (int) $value;
+        $marker = ord($byte);
+
+        return $marker & 0x0f;
     }
 
     /**
-     * @param int         $size
-     * @param BytesWalker $walker
-     *
-     * @return array
-     */
-    public function unpackMap($size, BytesWalker $walker)
-    {
-        $map = [];
-        for ($i = 0; $i < $size; ++$i) {
-            $identifier = $this->unpackElement($walker);
-            $value = $this->unpackElement($walker);
-            $map[$identifier] = $value;
-        }
-
-        return $map;
-    }
-
-    /**
-     * @param int         $size
-     * @param BytesWalker $walker
-     *
-     * @return array
-     */
-    public function unpackList($size, BytesWalker $walker)
-    {
-        $size = (int) $size;
-        $list = [];
-        for ($i = 0; $i < $size; ++$i) {
-            $list[] = $this->unpackElement($walker);
-        }
-
-        return $list;
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return int
-     */
-    public function getStructureSize(BytesWalker $walker)
-    {
-        $marker = $walker->read(1);
-
-        // if tiny size, no more bytes to read, the size is encoded in the low nibble
-        if ($this->isMarkerHigh($marker, Constants::STRUCTURE_TINY)) {
-            return $this->getLowNibbleValue($marker);
-        }
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
      * @return string
      */
     public function getSignature(BytesWalker $walker)
     {
         static $signatures = [
+            Constants::SIGNATURE_INIT => self::INIT,
             Constants::SIGNATURE_SUCCESS => self::SUCCESS,
             Constants::SIGNATURE_FAILURE => self::FAILURE,
             Constants::SIGNATURE_RECORD => self::RECORD,
@@ -403,15 +133,30 @@ class Unpacker
     }
 
     /**
-     * @param string $byte
-     *
      * @return int
      */
-    public function getLowNibbleValue($byte)
+    public function getStructureSize(BytesWalker $walker)
     {
-        $marker = ord($byte);
+        $marker = $walker->read(1);
 
-        return $marker & 0x0f;
+        // if tiny size, no more bytes to read, the size is encoded in the low nibble
+        if ($this->isMarkerHigh($marker, Constants::STRUCTURE_TINY)) {
+            return $this->getLowNibbleValue($marker);
+        }
+    }
+
+    /**
+     * @param int    $start
+     * @param int    $end
+     * @param string $byte
+     *
+     * @return mixed
+     */
+    public function isInRange($start, $end, $byte)
+    {
+        $range = range($start, $end);
+
+        return in_array(ord($byte), $range, true);
     }
 
     /**
@@ -453,118 +198,6 @@ class Unpacker
     }
 
     /**
-     * @param BytesWalker $walker
-     *
-     * @return mixed
-     */
-    public function readUnsignedShortShort(BytesWalker $walker)
-    {
-        list(, $v) = unpack('C', $walker->read(1));
-
-        return $v;
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return mixed
-     */
-    public function readSignedShortShort(BytesWalker $walker)
-    {
-        list(, $v) = unpack('c', $walker->read(1));
-
-        return $v;
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return mixed
-     */
-    public function readUnsignedShort(BytesWalker $walker)
-    {
-        list(, $v) = unpack('n', $walker->read(2));
-
-        return $v;
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return mixed
-     */
-    public function readSignedShort(BytesWalker $walker)
-    {
-        list(, $v) = unpack('s', $this->correctEndianness($walker->read(2)));
-
-        return $v;
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return mixed
-     */
-    public function readUnsignedLong(BytesWalker $walker)
-    {
-        list(, $v) = unpack('N', $walker->read(4));
-
-        return sprintf('%u', $v);
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return mixed
-     */
-    public function readSignedLong(BytesWalker $walker)
-    {
-        list(, $v) = unpack('l', $this->correctEndianness($walker->read(4)));
-
-        return $v;
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return mixed
-     */
-    public function readUnsignedLongLong(BytesWalker $walker)
-    {
-        list(, $v) = unpack('J', $walker->read(8));
-
-        return $v;
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
-     * @return int
-     */
-    public function readSignedLongLong(BytesWalker $walker)
-    {
-        list(, $high, $low) = unpack('N2', $walker->read(8));
-
-        return (int) bcadd($high << 32, $low, 0);
-    }
-
-    /**
-     * @param int    $start
-     * @param int    $end
-     * @param string $byte
-     *
-     * @return mixed
-     */
-    public function isInRange($start, $end, $byte)
-    {
-        $range = range($start, $end);
-
-        return in_array(ord($byte), $range);
-    }
-
-    /**
-     * @param BytesWalker $walker
-     *
      * @return string
      */
     public function read_longlong(BytesWalker $walker)
@@ -586,6 +219,355 @@ class Unpacker
     }
 
     /**
+     * @return mixed
+     */
+    public function readSignedLong(BytesWalker $walker)
+    {
+        list(, $v) = unpack('l', $this->correctEndianness($walker->read(4)));
+
+        return $v;
+    }
+
+    /**
+     * @return int
+     */
+    public function readSignedLongLong(BytesWalker $walker)
+    {
+        list(, $high, $low) = unpack('N2', $walker->read(8));
+
+        return (int) bcadd((string) ($high << 32), (string) $low, 0);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function readSignedShort(BytesWalker $walker)
+    {
+        list(, $v) = unpack('s', $this->correctEndianness($walker->read(2)));
+
+        return $v;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function readSignedShortShort(BytesWalker $walker)
+    {
+        list(, $v) = unpack('c', $walker->read(1));
+
+        return $v;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function readUnsignedLong(BytesWalker $walker)
+    {
+        list(, $v) = unpack('N', $walker->read(4));
+
+        return sprintf('%u', $v);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function readUnsignedLongLong(BytesWalker $walker)
+    {
+        list(, $v) = unpack('J', $walker->read(8));
+
+        return $v;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function readUnsignedShort(BytesWalker $walker)
+    {
+        list(, $v) = unpack('n', $walker->read(2));
+
+        return $v;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function readUnsignedShortShort(BytesWalker $walker)
+    {
+        list(, $v) = unpack('C', $walker->read(1));
+
+        return $v;
+    }
+
+    /**
+     * @return Structure
+     */
+    public function unpack()
+    {
+        $b = '';
+        do {
+            $chunkHeader = $this->streamChannel->read(2);
+            list(, $size) = unpack('n', $chunkHeader);
+            $b .= $this->streamChannel->read($size);
+        } while ($size > 0);
+
+        return $this->unpackElement(new BytesWalker(new RawMessage($b)));
+    }
+
+    public function unpackElement(BytesWalker $walker)
+    {
+        $marker = $walker->read(1);
+        $byte = hexdec(bin2hex($marker));
+        $ordMarker = ord($marker);
+        $markerHigh = $ordMarker & 0xf0;
+        $markerLow = $ordMarker & 0x0f;
+
+        // Structures
+        if (0xb0 <= $ordMarker && $ordMarker <= 0xbf) {
+            $walker->rewind(1);
+            $structureSize = $this->getStructureSize($walker);
+            $sig = $this->getSignature($walker);
+            $str = new Structure($sig, $structureSize);
+            $done = 0;
+            while ($done < $structureSize) {
+                $elt = $this->unpackElement($walker);
+                $str->addElement($elt);
+                ++$done;
+            }
+
+            return $str;
+        }
+
+        if (Constants::MAP_TINY === $markerHigh) {
+            $size = $markerLow;
+            $map = [];
+            for ($i = 0; $i < $size; ++$i) {
+                $identifier = $this->unpackElement($walker);
+                $value = $this->unpackElement($walker);
+                $map[$identifier] = $value;
+            }
+
+            return $map;
+        }
+
+        if (Constants::MAP_8 === $byte) {
+            $size = $this->readUnsignedShortShort($walker);
+
+            return $this->unpackMap($size, $walker);
+        }
+
+        if (Constants::MAP_16 === $byte) {
+            $size = $this->readUnsignedShort($walker);
+
+            return $this->unpackMap($size, $walker);
+        }
+
+        if (Constants::MAP_32 === $byte) {
+            $size = $this->readUnsignedLong($walker);
+
+            return $this->unpackMap($size, $walker);
+        }
+
+        if (Constants::TEXT_TINY === $markerHigh) {
+            $textSize = $this->getLowNibbleValue($marker);
+
+            return $this->unpackText($textSize, $walker);
+        }
+
+        if (Constants::TEXT_8 === $byte) {
+            $textSize = $this->readUnsignedShortShort($walker);
+
+            return $this->unpackText($textSize, $walker);
+        }
+
+        if (Constants::TEXT_16 === $byte) {
+            $textSize = $this->readUnsignedShort($walker);
+
+            return $this->unpackText($textSize, $walker);
+        }
+
+        if (Constants::TEXT_32 === $byte) {
+            $textSize = $this->readUnsignedLong($walker);
+
+            return $this->unpackText($textSize, $walker);
+        }
+
+        if (Constants::INT_8 === $byte) {
+            $integer = $this->readSignedShortShort($walker);
+
+            return $this->unpackInteger($integer);
+        }
+
+        if (Constants::INT_16 === $byte) {
+            $integer = $this->readSignedShort($walker);
+
+            return $this->unpackInteger($integer);
+        }
+
+        if (Constants::INT_32 === $byte) {
+            $integer = $this->readSignedLong($walker);
+
+            return $this->unpackInteger($integer);
+        }
+
+        if (Constants::INT_64 === $byte) {
+            $integer = $this->readSignedLongLong($walker);
+
+            return $this->unpackInteger($integer);
+        }
+
+        if (Constants::LIST_TINY === $markerHigh) {
+            $size = $this->getLowNibbleValue($marker);
+
+            return $this->unpackList($size, $walker);
+        }
+
+        if (Constants::LIST_8 === $byte) {
+            $size = $this->readUnsignedShortShort($walker);
+
+            return $this->unpackList($size, $walker);
+        }
+
+        if (Constants::LIST_16 === $byte) {
+            $size = $this->readUnsignedShort($walker);
+
+            return $this->unpackList($size, $walker);
+        }
+
+        if (Constants::LIST_32 === $byte) {
+            $size = $this->readUnsignedLong($walker);
+
+            return $this->unpackList($size, $walker);
+        }
+
+        // Checks for TINY INTS
+        if ($this->isInRange(0x00, 0x7f, $marker) || $this->isInRange(0xf0, 0xff, $marker)) {
+            $walker->rewind(1);
+            $integer = $this->readSignedShortShort($walker);
+
+            return $this->unpackInteger($integer);
+        }
+
+        // Checks for floats
+        if (Constants::MARKER_FLOAT === $byte) {
+            list(, $v) = unpack('d', strrev($walker->read(8)));
+
+            return (float) $v;
+        }
+
+        // Checks Primitive Values NULL, TRUE, FALSE
+        if (Constants::MARKER_NULL === $byte) {
+            return null;
+        }
+
+        if (Constants::MARKER_TRUE === $byte) {
+            return true;
+        }
+
+        if (Constants::MARKER_FALSE === $byte) {
+            return false;
+        }
+
+        throw new SerializationException(sprintf('Unable to find serialization type for marker %s', Helper::prettyHex($marker)));
+    }
+
+    /**
+     * @param string $value
+     *
+     * @return int
+     */
+    public function unpackInteger($value)
+    {
+        return (int) $value;
+    }
+
+    /**
+     * @param int $size
+     *
+     * @return array
+     */
+    public function unpackList($size, BytesWalker $walker)
+    {
+        $size = (int) $size;
+        $list = [];
+        for ($i = 0; $i < $size; ++$i) {
+            $list[] = $this->unpackElement($walker);
+        }
+
+        return $list;
+    }
+
+    /**
+     * @param int $size
+     *
+     * @return array
+     */
+    public function unpackMap($size, BytesWalker $walker)
+    {
+        $map = [];
+        for ($i = 0; $i < $size; ++$i) {
+            $identifier = $this->unpackElement($walker);
+            $value = $this->unpackElement($walker);
+            $map[$identifier] = $value;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return Node
+     */
+    public function unpackNode(BytesWalker $walker)
+    {
+        $identity = $this->unpackElement($walker);
+        $labels = $this->unpackElement($walker);
+        $properties = $this->unpackElement($walker);
+
+        return new Node($identity, $labels, $properties);
+    }
+
+    /**
+     * @return Path
+     */
+    public function unpackPath(BytesWalker $walker)
+    {
+        return $this->unpackElement($walker);
+    }
+
+    /**
+     * @return \GraphAware\Bolt\PackStream\Structure\Structure
+     */
+    public function unpackRaw(RawMessage $message)
+    {
+        $walker = new BytesWalker($message);
+
+        return $this->unpackElement($walker);
+    }
+
+    /**
+     * @return Relationship
+     */
+    public function unpackRelationship(BytesWalker $walker)
+    {
+        $identity = $this->unpackElement($walker);
+        $startNode = $this->unpackElement($walker);
+        $endNode = $this->unpackElement($walker);
+        $type = $this->unpackElement($walker);
+        $properties = $this->unpackElement($walker);
+
+        return new Relationship($identity, $startNode, $endNode, $type, $properties);
+    }
+
+    /**
+     * @param int $size
+     *
+     * @return string
+     */
+    public function unpackText($size, BytesWalker $walker)
+    {
+        return $walker->read($size);
+    }
+
+    /**
      * @param string $byteString
      *
      * @return string
@@ -593,18 +575,8 @@ class Unpacker
     private function correctEndianness($byteString)
     {
         $tmp = unpack('S', "\x01\x00");
-        $isLittleEndian = $tmp[1] == 1;
+        $isLittleEndian = 1 == $tmp[1];
 
         return $isLittleEndian ? strrev($byteString) : $byteString;
-    }
-
-    /**
-     * @param int $longInt
-     *
-     * @return bool
-     */
-    private static function getLongMSB($longInt)
-    {
-        return (bool) ($longInt & 0x80000000);
     }
 }

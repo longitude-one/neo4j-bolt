@@ -1,6 +1,6 @@
 <?php
 
-namespace GraphAware\Bolt\Protocol\V1;
+namespace GraphAware\Bolt\Protocol\V100;
 
 use MyCLabs\Enum\Enum;
 

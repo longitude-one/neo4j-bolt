@@ -1,41 +1,44 @@
 <?php
-
-/*
- * This file is part of the GraphAware Bolt package.
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
  *
- * (c) GraphAware Ltd <christophe@graphaware.com>
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace GraphAware\Bolt\Protocol;
 
 use GraphAware\Bolt\IO\AbstractIO;
 use GraphAware\Common\Driver\SessionInterface;
+use InvalidArgumentException;
+use RuntimeException;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class SessionRegistry
 {
+    /**
+     * @var EventDispatcherInterface
+     */
+    protected $dispatcher;
     /**
      * @var AbstractIO
      */
     protected $io;
 
     /**
-     * @var EventDispatcherInterface
-     */
-    protected $dispatcher;
-
-    /**
      * @var array
      */
     protected $sessions = [];
 
-    /**
-     * @param AbstractIO               $io
-     * @param EventDispatcherInterface $dispatcher
-     */
     public function __construct(AbstractIO $io, EventDispatcherInterface $dispatcher)
     {
         $this->io = $io;
@@ -43,17 +46,16 @@ class SessionRegistry
     }
 
     /**
-     * @param string $sessionClass
+     * @return SessionInterface
      */
-    public function registerSession($sessionClass)
+    public function getSession(int $version, array $credentials)
     {
-        $v = (int) $sessionClass::getProtocolVersion();
-
-        if (array_key_exists($v, $this->sessions)) {
-            throw new \RuntimeException(sprintf('There is already a Session registered for supporting Version#%d', $v));
+        if (!$this->supportsVersion($version)) {
+            throw new InvalidArgumentException(sprintf('No session registered supporting Version %d', $version));
         }
+        $class = $this->sessions[$version];
 
-        $this->sessions[$v] = $sessionClass;
+        return new $class($this->io, $this->dispatcher, $credentials);
     }
 
     /**
@@ -65,6 +67,20 @@ class SessionRegistry
     }
 
     /**
+     * @param SessionInterface $sessionClass
+     */
+    public function registerSession($sessionClass)
+    {
+        $version = (int) $sessionClass::getProtocolVersion();
+
+        if (array_key_exists($version, $this->sessions)) {
+            throw new RuntimeException(sprintf('There is already a Session registered for supporting Version#%d', $version));
+        }
+
+        $this->sessions[$version] = $sessionClass;
+    }
+
+    /**
      * @param int $version
      *
      * @return bool
@@ -72,23 +88,5 @@ class SessionRegistry
     public function supportsVersion($version)
     {
         return array_key_exists((int) $version, $this->sessions);
-    }
-
-    /**
-     * @param int   $version
-     * @param array $credentials
-     *
-     * @return SessionInterface
-     */
-    public function getSession($version, array $credentials)
-    {
-        $v = (int) $version;
-
-        if (!$this->supportsVersion($v)) {
-            throw new \InvalidArgumentException(sprintf('No session registered supporting Version %d', $v));
-        }
-        $class = $this->sessions[$v];
-
-        return new $class($this->io, $this->dispatcher, $credentials);
     }
 }

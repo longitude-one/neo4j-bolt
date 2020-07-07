@@ -1,29 +1,36 @@
 <?php
-
-/*
- * This file is part of the GraphAware Bolt package.
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
  *
- * (c) Graph Aware Limited <http://graphaware.com>
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
 
-namespace GraphAware\Bolt\Protocol\Message;
+declare(strict_types=1);
+
+namespace GraphAware\Bolt\Protocol\V100;
 
 use GraphAware\Bolt\Protocol\Constants;
+use GraphAware\Bolt\Protocol\Message\AbstractMessage;
+use GraphAware\Bolt\Protocol\Message\MessageInterface;
 
-class InitMessage extends AbstractMessage
+class InitMessage extends AbstractMessage implements MessageInterface
 {
     const MESSAGE_TYPE = 'INIT';
 
     /**
      * @param string $userAgent
-     * @param array  $credentials
      */
     public function __construct($userAgent, array $credentials)
     {
-        $authToken = array();
+        $authToken = [];
 
         if (isset($credentials[1]) && null !== $credentials[1]) {
             $authToken = [
@@ -33,7 +40,7 @@ class InitMessage extends AbstractMessage
             ];
         }
 
-        parent::__construct(Constants::SIGNATURE_INIT, array($userAgent, $authToken));
+        parent::__construct(Constants::SIGNATURE_INIT, [$userAgent, $authToken]);
     }
 
     /**
