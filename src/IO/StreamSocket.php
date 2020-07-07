@@ -1,27 +1,38 @@
 <?php
-
-/*
- * This file is part of the GraphAware Bolt package.
+/**
+ * This file is part of the LongitudeOne Neo4j Bolt driver for PHP.
  *
- * (c) Graph Aware Limited <http://graphaware.com>
+ * PHP version 7.2|7.3|7.4
+ * Neo4j 3.0|3.5|4.0|4.1
+ *
+ * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
+ * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace GraphAware\Bolt\IO;
 
 use GraphAware\Bolt\Configuration;
 use GraphAware\Bolt\Exception\IOException;
-use GraphAware\Bolt\Misc\Helper;
+use RuntimeException;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class StreamSocket extends AbstractIO
 {
     /**
-     * @var string
+     * @var array|null
      */
-    protected $protocol;
+    protected $context;
+
+    /**
+     * @var EventDispatcher|null
+     */
+    protected $eventDispatcher;
 
     /**
      * @var string
@@ -29,43 +40,36 @@ class StreamSocket extends AbstractIO
     protected $host;
 
     /**
-     * @var int
-     */
-    protected $port;
-
-    /**
-     * @var array|null
-     */
-    protected $context;
-
-    /**
      * @var bool
      */
     protected $keepAlive;
 
     /**
-     * @var null|EventDispatcher
+     * @var int
      */
-    protected $eventDispatcher;
+    protected $port;
+    /**
+     * @var string
+     */
+    protected $protocol;
 
     /**
      * @var int
      */
     protected $timeout = 5;
 
+    private $configuration;
+
     /**
      * @var resource|null
      */
     private $sock;
 
-    private $configuration;
-
     /**
-     * @param string               $host
-     * @param int                  $port
-     * @param array|null           $context
-     * @param bool                 $keepAlive
-     * @param EventDispatcher|null $eventDispatcher
+     * @param string     $host
+     * @param int        $port
+     * @param array|null $context
+     * @param bool       $keepAlive
      */
     public function __construct($host, $port, $context = null, $keepAlive = false, EventDispatcher $eventDispatcher = null, Configuration $configuration = null)
     {
@@ -95,8 +99,8 @@ class StreamSocket extends AbstractIO
         if (null !== $configuration->getValue('bind_to_interface')) {
             $context = stream_context_create([
                 'socket' => [
-                    'bindto' => $configuration->getValue('bind_to_interface')
-                ]
+                    'bindto' => $configuration->getValue('bind_to_interface'),
+                ],
             ]);
         }
 
@@ -106,78 +110,15 @@ class StreamSocket extends AbstractIO
     /**
      * {@inheritdoc}
      */
-    public function write($data)
+    public function close()
     {
-        //echo \GraphAware\Bolt\Misc\Helper::prettyHex($data) . PHP_EOL;
-        $this->assertConnected();
-        $written = 0;
-        $len = mb_strlen($data, 'ASCII');
-
-        while ($written < $len) {
-            $buf = fwrite($this->sock, $data);
-
-            if ($buf === false) {
-                throw new IOException('Error writing data');
-            }
-
-            if ($buf === 0 && feof($this->sock)) {
-                throw new IOException('Broken pipe or closed connection');
-            }
-
-            $written += $buf;
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function read($n)
-    {
-        if (null === $n) {
-            return $this->readAll();
-        }
-        $this->assertConnected();
-        $read = 0;
-        $data = '';
-
-        while ($read < $n) {
-            $buffer = fread($this->sock, ($n - $read));
-            //var_dump(\GraphAware\Bolt\Misc\Helper::prettyHex($buffer));
-            // check '' later for non-blocking mode use case
-            if ($buffer === false || '' === $buffer) {
-                throw new IOException('Error receiving data');
-            }
-
-            $read += mb_strlen($buffer, 'ASCII');
-            $data .= $buffer;
+        if (is_resource($this->sock)) {
+            fclose($this->sock);
         }
 
-        return $data;
-    }
+        $this->sock = null;
 
-    /**
-     * @param int $l
-     *
-     * @return string
-     */
-    public function readChunk($l = 8192)
-    {
-        $data = stream_socket_recvfrom($this->sock, $l);
-        //echo Helper::prettyHex($data);
-
-        return $data;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function select($sec, $usec)
-    {
-        $r = array($this->sock);
-        $w = $e = null;
-        $result = stream_select($r, $w, $e, $sec, $usec);
-
-        return $result;
+        return true;
     }
 
     /**
@@ -204,15 +145,14 @@ class StreamSocket extends AbstractIO
         );
 
         if (false === $this->sock) {
-            throw new IOException(sprintf(
-                'Error to connect to the server(%s) :  "%s"', $errno, $errstr
-            ));
+            throw new IOException(sprintf('Error to connect to the server(%s) :  "%s"', $errno, $errstr));
         }
 
         if ($this->shouldEnableCrypto()) {
+            //FIXME Add a test to verify that STREAM_CRYPTO_METHOD_SSLv23_CLIENT is defined and ext-openssl is available
             $result = stream_socket_enable_crypto($this->sock, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
             if (true !== $result) {
-                throw new \RuntimeException(sprintf('Unable to enable crypto on socket'));
+                throw new RuntimeException(sprintf('Unable to enable crypto on socket'));
             }
         }
 
@@ -224,15 +164,47 @@ class StreamSocket extends AbstractIO
     /**
      * {@inheritdoc}
      */
-    public function close()
+    public function isConnected()
     {
-        if (is_resource($this->sock)) {
-            fclose($this->sock);
+        return is_resource($this->sock);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function read($n)
+    {
+        if (null === $n) {
+            return $this->readAll();
+        }
+        $this->assertConnected();
+        $read = 0;
+        $data = '';
+
+        while ($read < $n) {
+            $buffer = fread($this->sock, ($n - $read));
+            //echo 'R:'.\GraphAware\Bolt\Misc\Helper::prettyHex($buffer).PHP_EOL; //FIXME REMOVE
+            // check '' later for non-blocking mode use case
+            if (false === $buffer || '' === $buffer) {
+                throw new IOException('Error receiving data');
+            }
+
+            $read += mb_strlen($buffer, 'ASCII');
+            $data .= $buffer;
         }
 
-        $this->sock = null;
+        return $data;
+    }
 
-        return true;
+    /**
+     * @param int $l
+     *
+     * @return string
+     */
+    public function readChunk($l = 8192)
+    {
+        return stream_socket_recvfrom($this->sock, $l);
+        //echo Helper::prettyHex($data);
     }
 
     /**
@@ -248,9 +220,46 @@ class StreamSocket extends AbstractIO
     /**
      * {@inheritdoc}
      */
-    public function isConnected()
+    public function select($sec, $usec)
     {
-        return is_resource($this->sock);
+        $r = [$this->sock];
+        $w = $e = null;
+
+        return stream_select($r, $w, $e, $sec, $usec);
+    }
+
+    public function shouldEnableCrypto()
+    {
+        if (null !== $this->configuration && Configuration::TLSMODE_REQUIRED === $this->configuration->getValue('tls_mode')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write($data)
+    {
+        //echo 'W:'.\GraphAware\Bolt\Misc\Helper::prettyHex($data).PHP_EOL; //FIXME REMOVE
+        $this->assertConnected();
+        $written = 0;
+        $len = mb_strlen($data, 'ASCII');
+
+        while ($written < $len) {
+            $buf = fwrite($this->sock, $data);
+
+            if (false === $buf) {
+                throw new IOException('Error writing data');
+            }
+
+            if (0 === $buf && feof($this->sock)) {
+                throw new IOException('Broken pipe or closed connection');
+            }
+
+            $written += $buf;
+        }
     }
 
     /**
@@ -259,7 +268,7 @@ class StreamSocket extends AbstractIO
     private function readAll()
     {
         stream_set_blocking($this->sock, false);
-        $r = array($this->sock);
+        $r = [$this->sock];
         $w = $e = [];
         $data = '';
         $continue = true;
@@ -275,23 +284,14 @@ class StreamSocket extends AbstractIO
 
             $buffer = stream_get_contents($this->sock, 8192);
 
-            if ($buffer === '') {
+            if ('' === $buffer) {
                 stream_select($r, $w, $e, null, null);
             }
 
-            $r = array($this->sock);
+            $r = [$this->sock];
             $data .= $buffer;
         }
 
         return $data;
-    }
-
-    public function shouldEnableCrypto()
-    {
-        if (null !== $this->configuration && $this->configuration->getValue('tls_mode') === Configuration::TLSMODE_REQUIRED) {
-            return true;
-        }
-
-        return false;
     }
 }

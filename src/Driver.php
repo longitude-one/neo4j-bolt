@@ -20,6 +20,7 @@ namespace GraphAware\Bolt;
 use GraphAware\Bolt\Exception\HandshakeException;
 use GraphAware\Bolt\Exception\IOException;
 use GraphAware\Bolt\IO\StreamSocket;
+use GraphAware\Bolt\Protocol\SessionInterface;
 use GraphAware\Bolt\Protocol\SessionRegistry;
 use GraphAware\Bolt\Protocol\V1\Session;
 use GraphAware\Common\Driver\DriverInterface;
@@ -119,7 +120,7 @@ class Driver implements DriverInterface
         //Version 1: 60:60:b0:17:00:00:00:01:00:00:00:00:00:00:00:00:00:00:00:00
         try {
             $version = $this->handshakeVersion41();
-            if ($version) {
+            if (!empty($version)) {
                 return $version;
             }
         } catch (IOException $e) {
@@ -132,7 +133,7 @@ class Driver implements DriverInterface
     /**
      * @return Session
      */
-    public function session()
+    public function session(): SessionInterface
     {
         if (null !== $this->session) {
             return $this->session;
