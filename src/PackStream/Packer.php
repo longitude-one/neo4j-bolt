@@ -7,6 +7,7 @@
  *
  * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
  * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -18,23 +19,17 @@ namespace GraphAware\Bolt\PackStream;
 
 use GraphAware\Bolt\Exception\BoltInvalidArgumentException;
 use GraphAware\Bolt\Exception\SerializationException;
-use GraphAware\Bolt\PackStream\Structure\Structure;
-use GraphAware\Bolt\Protocol\Constants;
+use GraphAware\Bolt\Protocol\Constants\Marker;
+use GraphAware\Bolt\Protocol\Constants\Signature;
 use GraphAware\Common\Collection\ArrayList;
 use GraphAware\Common\Collection\Map;
 use OutOfBoundsException;
 
 class Packer
 {
-    //    public const BYTES_16 = 0xCD;
+//    public const BYTES_16 = 0xCD;
 //    public const BYTES_32 = 0xCE;
 //    public const BYTES_8 = 0xCC;
-//    public const LIST_16 = 0xD5;
-//    public const LIST_32 = 0xD6;
-//    public const LIST_8 = 0xD4;
-//    public const MAP_16 = 0xD9;
-//    public const MAP_32 = 0xDA;
-//    public const MAP_8 = 0xD8;
 //
 //    public const RESERVED_C4 = 0xC4;
 //    public const RESERVED_C5 = 0xC5;
@@ -62,15 +57,6 @@ class Packer
 //    public const RESERVED_ED = 0xED;
 //    public const RESERVED_EE = 0xEE;
 //    public const RESERVED_EF = 0xEF;
-//    public const STRING_16 = 0xD1;
-//    public const STRING_32 = 0xD2;
-//    public const STRING_8 = 0xD0;
-//    public const STRUCT_16 = 0xDD;
-//    public const STRUCT_8 = 0xDC;
-//    public const TINY_LIST = 0x90;
-//    public const TINY_MAP = 0xA0;
-//    public const TINY_STRING = 0x80;
-//    public const TINY_STRUCT = 0xB0;
 
     private const MINUS_2_TO_THE_04 = -16;
     private const MINUS_2_TO_THE_07 = -128;
@@ -86,14 +72,14 @@ class Packer
     private const PLUS_2_TO_THE_15 = 32768;
     private const PLUS_2_TO_THE_31 = 2147483648;
 
-    public static function getEndSignature(): string //FIXME review this method and test it
+    public static function getEndSignature(): string
     {
-        return str_repeat(chr(Constants::MISC_ZERO), 2);
+        return str_repeat(chr(Marker::END), 2);
     }
 
     public static function getRunSignature(): string //FIXME Update and test
     {
-        return chr(Constants::SIGNATURE_RUN);
+        return chr(Signature::SIGNATURE_RUN);
     }
 
     public static function isList(array $array): bool

@@ -36,6 +36,8 @@ class ConnectTest extends IntegrationTestCase
 
     public function testHandshake(): void
     {
-        $this->assertInstanceOf(SessionInterface::class, $this->getSession());
+        $session = $this->getSession();
+        $this->assertInstanceOf(SessionInterface::class, $session);
+        $session->close();
     }
 }

@@ -7,6 +7,7 @@
  *
  * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
  * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -14,11 +15,14 @@
 
 declare(strict_types=1);
 
-namespace GraphAware\Bolt\PackStream;
+namespace GraphAware\Bolt\Protocol\Constants;
 
 class Marker
 {
+    public const END = 0x00;
+
     public const FALSE = 0xC2;
+
     public const FLOAT_64 = 0xC1;
 
     public const INT_16 = 0xC9;

@@ -17,9 +17,11 @@ declare(strict_types=1);
 
 namespace GraphAware\Bolt\Protocol\V410;
 
+use Exception;
 use GraphAware\Bolt\Driver;
 use GraphAware\Bolt\Exception\MessageFailureException;
 use GraphAware\Bolt\IO\AbstractIO;
+use GraphAware\Bolt\PackStream\Structure\Structure;
 use GraphAware\Bolt\Protocol\AbstractSession;
 use GraphAware\Bolt\Protocol\Message\AbstractMessage;
 use GraphAware\Bolt\Protocol\Message\AckFailureMessage;
@@ -27,6 +29,9 @@ use GraphAware\Bolt\Protocol\Message\PullAllMessage;
 use GraphAware\Bolt\Protocol\Message\RawMessage;
 use GraphAware\Bolt\Protocol\Message\RunMessage;
 use GraphAware\Bolt\Protocol\Pipeline;
+use GraphAware\Bolt\Protocol\V410\Message\GoodbyeMessage;
+use GraphAware\Bolt\Protocol\V410\Message\InitMessage;
+use GraphAware\Bolt\Protocol\V410\Message\ResetMessage;
 use GraphAware\Bolt\Result\Result as CypherResult;
 use GraphAware\Common\Cypher\Statement;
 use RuntimeException;
@@ -72,6 +77,7 @@ class Session extends AbstractSession
      */
     public function close()
     {
+        $this->sendMessage(new GoodbyeMessage());
         $this->io->close();
         $this->isInitialized = false;
     }
@@ -85,7 +91,7 @@ class Session extends AbstractSession
     }
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     public function init()
     {
@@ -95,14 +101,20 @@ class Session extends AbstractSession
         $responseMessage = $this->receiveMessageInit();
 
         if ('SUCCESS' != $responseMessage->getSignature()) {
-            throw new \Exception('Unable to INIT');
+            throw new Exception('Unable to INIT');
+        }
+
+        $this->sendMessage(new ResetMessage());
+        $responseMessage = $this->receiveMessage();
+        if ('SUCCESS' != $responseMessage->getSignature()) {
+            throw new Exception('Unable to RESET'); //It's possible that we do not have to reset after init
         }
 
         $this->isInitialized = true;
     }
 
     /**
-     * @return \GraphAware\Bolt\PackStream\Structure\Structure
+     * @return Structure
      */
     public function receiveMessage()
     {
@@ -136,7 +148,7 @@ class Session extends AbstractSession
     }
 
     /**
-     * @return \GraphAware\Bolt\PackStream\Structure\Structure
+     * @return Structure
      */
     public function receiveMessageInit()
     {

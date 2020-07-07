@@ -7,6 +7,7 @@
  *
  * (c) Alexandre Tranchant <alexandre.tranchant@gmail.com>
  * (c) Longitude One 2020
+ * (c) Graph Aware Limited <http://graphaware.com> 2015-2016
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -18,12 +19,11 @@ namespace GraphAware\Bolt\Tests\Unit\PackStream;
 
 use GraphAware\Bolt\IO\StreamSocket;
 use GraphAware\Bolt\PackStream\BytesWalker;
-use GraphAware\Bolt\PackStream\Marker;
 use GraphAware\Bolt\PackStream\Packer;
 use GraphAware\Bolt\PackStream\Size;
 use GraphAware\Bolt\PackStream\StreamChannel;
 use GraphAware\Bolt\PackStream\Unpacker;
-use GraphAware\Bolt\Protocol\Constants;
+use GraphAware\Bolt\Protocol\Constants\Marker;
 use GraphAware\Bolt\Protocol\Message\RawMessage;
 use PHPUnit\Framework\TestCase;
 
@@ -64,14 +64,14 @@ class PackingUnpackingTest extends TestCase
 
     public function testPackingFalse()
     {
-        $w = $this->getWalkerForBinary(chr(Constants::MARKER_FALSE));
+        $w = $this->getWalkerForBinary(chr(Marker::FALSE));
         $this->assertFalse($this->unpacker->unpackElement($w));
         $this->assertSame(chr(Marker::FALSE), Packer::pack(false));
     }
 
     public function testPackingNull()
     {
-        $w = $this->getWalkerForBinary(chr(Constants::MARKER_NULL));
+        $w = $this->getWalkerForBinary(chr(Marker::NULL));
         $this->assertNull($this->unpacker->unpackElement($w));
         $this->assertSame(chr(Marker::NULL), Packer::pack(null));
     }
@@ -106,8 +106,8 @@ class PackingUnpackingTest extends TestCase
 
     public function testPackingTrue()
     {
-        $w = $this->getWalkerForBinary(chr(Constants::MARKER_TRUE));
-        $this->assertTrue( $this->unpacker->unpackElement($w));
+        $w = $this->getWalkerForBinary(chr(Marker::TRUE));
+        $this->assertTrue($this->unpacker->unpackElement($w));
         $this->assertSame(chr(Marker::TRUE), Packer::pack(true));
     }
 

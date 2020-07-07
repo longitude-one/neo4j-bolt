@@ -20,7 +20,8 @@ namespace GraphAware\Bolt\PackStream;
 use GraphAware\Bolt\Exception\SerializationException;
 use GraphAware\Bolt\Misc\Helper;
 use GraphAware\Bolt\PackStream\Structure\Structure;
-use GraphAware\Bolt\Protocol\Constants;
+use GraphAware\Bolt\Protocol\Constants\Marker;
+use GraphAware\Bolt\Protocol\Constants\Signature;
 use GraphAware\Bolt\Protocol\Message\RawMessage;
 use GraphAware\Bolt\Result\Type\Node;
 use GraphAware\Bolt\Result\Type\Path;
@@ -29,11 +30,9 @@ use GraphAware\Bolt\Result\Type\Relationship;
 class Unpacker
 {
     const FAILURE = 'FAILURE';
-
+    const GOODBYE = 'GOODBYE';
     const IGNORED = 'IGNORED';
-
     const INIT = 'INIT';
-
     const RECORD = 'RECORD';
     const SUCCESS = 'SUCCESS';
 
@@ -80,23 +79,14 @@ class Unpacker
      */
     public function getSignature(BytesWalker $walker)
     {
-        static $signatures = [
-            Constants::SIGNATURE_INIT => self::INIT,
-            Constants::SIGNATURE_SUCCESS => self::SUCCESS,
-            Constants::SIGNATURE_FAILURE => self::FAILURE,
-            Constants::SIGNATURE_RECORD => self::RECORD,
-            Constants::SIGNATURE_IGNORE => self::IGNORED,
-            Constants::SIGNATURE_UNBOUND_RELATIONSHIP => 'UNBOUND_RELATIONSHIP',
-            Constants::SIGNATURE_NODE => 'NODE',
-            Constants::SIGNATURE_PATH => 'PATH',
-            Constants::SIGNATURE_RELATIONSHIP => 'RELATIONSHIP',
-        ];
-
         $sigMarker = $walker->read(1);
         $ordMarker = ord($sigMarker);
 
-        return $signatures[$ordMarker];
+        if (key_exists($ordMarker, Signature::SIGNATURES)) {
+            return Signature::SIGNATURES[$ordMarker];
+        }
 
+        throw new SerializationException(sprintf('Unable to guess the signature for byte "%s"', Helper::prettyHex($sigMarker)));
 //        if (Constants::SIGNATURE_SUCCESS === $ordMarker) {
 //            return self::SUCCESS;
 //        }
@@ -140,7 +130,7 @@ class Unpacker
         $marker = $walker->read(1);
 
         // if tiny size, no more bytes to read, the size is encoded in the low nibble
-        if ($this->isMarkerHigh($marker, Constants::STRUCTURE_TINY)) {
+        if ($this->isMarkerHigh($marker, Marker::STRUCTURE_TINY)) {
             return $this->getLowNibbleValue($marker);
         }
     }
@@ -337,7 +327,7 @@ class Unpacker
             return $str;
         }
 
-        if (Constants::MAP_TINY === $markerHigh) {
+        if (Marker::MAP_TINY === $markerHigh) {
             $size = $markerLow;
             $map = [];
             for ($i = 0; $i < $size; ++$i) {
@@ -349,91 +339,91 @@ class Unpacker
             return $map;
         }
 
-        if (Constants::MAP_8 === $byte) {
+        if (Marker::MAP_8 === $byte) {
             $size = $this->readUnsignedShortShort($walker);
 
             return $this->unpackMap($size, $walker);
         }
 
-        if (Constants::MAP_16 === $byte) {
+        if (Marker::MAP_16 === $byte) {
             $size = $this->readUnsignedShort($walker);
 
             return $this->unpackMap($size, $walker);
         }
 
-        if (Constants::MAP_32 === $byte) {
+        if (Marker::MAP_32 === $byte) {
             $size = $this->readUnsignedLong($walker);
 
             return $this->unpackMap($size, $walker);
         }
 
-        if (Constants::TEXT_TINY === $markerHigh) {
+        if (Marker::TEXT_TINY === $markerHigh) {
             $textSize = $this->getLowNibbleValue($marker);
 
             return $this->unpackText($textSize, $walker);
         }
 
-        if (Constants::TEXT_8 === $byte) {
+        if (Marker::TEXT_8 === $byte) {
             $textSize = $this->readUnsignedShortShort($walker);
 
             return $this->unpackText($textSize, $walker);
         }
 
-        if (Constants::TEXT_16 === $byte) {
+        if (Marker::TEXT_16 === $byte) {
             $textSize = $this->readUnsignedShort($walker);
 
             return $this->unpackText($textSize, $walker);
         }
 
-        if (Constants::TEXT_32 === $byte) {
+        if (Marker::TEXT_32 === $byte) {
             $textSize = $this->readUnsignedLong($walker);
 
             return $this->unpackText($textSize, $walker);
         }
 
-        if (Constants::INT_8 === $byte) {
+        if (Marker::INT_8 === $byte) {
             $integer = $this->readSignedShortShort($walker);
 
             return $this->unpackInteger($integer);
         }
 
-        if (Constants::INT_16 === $byte) {
+        if (Marker::INT_16 === $byte) {
             $integer = $this->readSignedShort($walker);
 
             return $this->unpackInteger($integer);
         }
 
-        if (Constants::INT_32 === $byte) {
+        if (Marker::INT_32 === $byte) {
             $integer = $this->readSignedLong($walker);
 
             return $this->unpackInteger($integer);
         }
 
-        if (Constants::INT_64 === $byte) {
+        if (Marker::INT_64 === $byte) {
             $integer = $this->readSignedLongLong($walker);
 
             return $this->unpackInteger($integer);
         }
 
-        if (Constants::LIST_TINY === $markerHigh) {
+        if (Marker::LIST_TINY === $markerHigh) {
             $size = $this->getLowNibbleValue($marker);
 
             return $this->unpackList($size, $walker);
         }
 
-        if (Constants::LIST_8 === $byte) {
+        if (Marker::LIST_8 === $byte) {
             $size = $this->readUnsignedShortShort($walker);
 
             return $this->unpackList($size, $walker);
         }
 
-        if (Constants::LIST_16 === $byte) {
+        if (Marker::LIST_16 === $byte) {
             $size = $this->readUnsignedShort($walker);
 
             return $this->unpackList($size, $walker);
         }
 
-        if (Constants::LIST_32 === $byte) {
+        if (Marker::LIST_32 === $byte) {
             $size = $this->readUnsignedLong($walker);
 
             return $this->unpackList($size, $walker);
@@ -448,22 +438,22 @@ class Unpacker
         }
 
         // Checks for floats
-        if (Constants::MARKER_FLOAT === $byte) {
+        if (Marker::FLOAT_64 === $byte) {
             list(, $v) = unpack('d', strrev($walker->read(8)));
 
             return (float) $v;
         }
 
         // Checks Primitive Values NULL, TRUE, FALSE
-        if (Constants::MARKER_NULL === $byte) {
+        if (Marker::NULL === $byte) {
             return null;
         }
 
-        if (Constants::MARKER_TRUE === $byte) {
+        if (Marker::TRUE === $byte) {
             return true;
         }
 
-        if (Constants::MARKER_FALSE === $byte) {
+        if (Marker::FALSE === $byte) {
             return false;
         }
 

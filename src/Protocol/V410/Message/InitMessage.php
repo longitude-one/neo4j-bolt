@@ -15,7 +15,7 @@
 
 declare(strict_types=1);
 
-namespace GraphAware\Bolt\Protocol\V410;
+namespace GraphAware\Bolt\Protocol\V410\Message;
 
 use GraphAware\Bolt\Protocol\Constants;
 use GraphAware\Bolt\Protocol\Message\AbstractMessage;
