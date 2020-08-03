@@ -92,10 +92,11 @@ class StreamSocket extends AbstractIO
     public static function withConfiguration($host, $port, Configuration $configuration, EventDispatcher $eventDispatcher = null)
     {
         $context = null;
-        if (null !== $configuration->getValue('bind_to_interface')) {
+        $bindToInterface =  $configuration->getValue('bind_to_interface');
+        if (null !== $bindToInterface && 'null' !== $bindToInterface) {
             $context = stream_context_create([
                 'socket' => [
-                    'bindto' => $configuration->getValue('bind_to_interface')
+                    'bindto' => $bindToInterface
                 ]
             ]);
         }
